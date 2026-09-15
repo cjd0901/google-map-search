@@ -37,6 +37,11 @@ GitHub Actions 支持手动运行，也会在推送 `v*` 版本标签时自动�
 
 构建完成后，可在对应 Actions 运行记录的 Artifacts 区域下载。macOS 构建默认使用临时签名；面向外部正式分发时，应配置 Apple Developer 签名证书并完成公证。
 
+推送 `v*` 标签时，工作流还可以将安装包自动发布到单独的公有仓库。需要在私有源码仓库的 `Settings > Secrets and variables > Actions` 中配置：
+
+- Secret `PUBLIC_RELEASE_TOKEN`：只授权公有下载仓库且具有 `Contents: Read and write` 权限的 Fine-grained PAT。
+- Variable `PUBLIC_RELEASE_REPO`：公有仓库的完整名称，例如 `cjd0901/yingfeng-data-releases`。
+
 ## 代码结构
 
 - `src/components`：无数据访问职责的界面组件。
