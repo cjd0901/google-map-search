@@ -25,7 +25,7 @@ function parseNumber(value = "") {
 }
 
 async function launchBrowser(headless) {
-  const userDataDir = path.join(os.tmpdir(), "google-map-search-browser-profile");
+  const userDataDir = path.join(os.tmpdir(), "yingfeng-data-browser-profile");
   const common = {
     headless,
     viewport: { width: 1440, height: 900 },

@@ -19,8 +19,8 @@ export function Sidebar({
       <div className="brand">
         <img className="brand-mark" src="/app-icon.png" alt="" />
         <div>
-          <strong>Map Leads</strong>
-          <small>商家线索采集</small>
+          <strong>迎风数据</strong>
+          <small>yingfeng-data</small>
         </div>
       </div>
 

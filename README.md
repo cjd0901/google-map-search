@@ -1,8 +1,8 @@
-# Google Maps 商家信息采集工具
+# 迎风数据（yingfeng-data）
 
 ![应用图标](./assets/branding/map-leads-icon-source.png)
 
-基于 Tauri 2、React 和 Rust 的桌面工具，用于按关键词与地区检索商家、整理公开商家资料，并从商家官网发现公开联系邮箱。
+迎风数据是一款基于 Tauri 2、React 和 Rust 的桌面工具，用于按关键词与地区检索商家、整理公开商家资料，并从商家官网发现公开联系邮箱。
 
 当前已实现第一个可运行 MVP：
 

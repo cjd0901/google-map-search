@@ -1531,26 +1531,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "google_map_search"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "csv",
- "regex",
- "reqwest 0.12.28",
- "rusqlite",
- "scraper",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-opener",
- "tokio",
- "url",
- "uuid",
-]
-
-[[package]]
 name = "gtk"
 version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5519,6 +5499,26 @@ dependencies = [
  "libc",
  "once_cell",
  "pkg-config",
+]
+
+[[package]]
+name = "yingfeng-data"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "csv",
+ "regex",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "scraper",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-opener",
+ "tokio",
+ "url",
+ "uuid",
 ]
 
 [[package]]

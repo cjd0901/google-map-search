@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    google_map_search_lib::run()
+    yingfeng_data_lib::run()
 }

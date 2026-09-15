@@ -4,7 +4,8 @@ const API_BASE_URL = (import.meta.env.VITE_SERVER_URL || "https://wa.sililand.co
   /\/+$/,
   "",
 );
-const DEVICE_ID_KEY = "google-map-search.device-id";
+const DEVICE_ID_KEY = "yingfeng-data.device-id";
+const LEGACY_DEVICE_ID_KEY = "google-map-search.device-id";
 
 export class LicenseServiceError extends Error {
   readonly code: string;
@@ -27,6 +28,11 @@ function getDeviceId(): string {
   try {
     const stored = window.localStorage.getItem(DEVICE_ID_KEY)?.trim();
     if (stored) return stored;
+    const legacyStored = window.localStorage.getItem(LEGACY_DEVICE_ID_KEY)?.trim();
+    if (legacyStored) {
+      window.localStorage.setItem(DEVICE_ID_KEY, legacyStored);
+      return legacyStored;
+    }
     const deviceId = createDeviceId();
     window.localStorage.setItem(DEVICE_ID_KEY, deviceId);
     return deviceId;

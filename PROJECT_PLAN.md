@@ -1,4 +1,4 @@
-# Google Maps 商家信息采集工具方案
+# 迎风数据（yingfeng-data）方案
 
 ## 0. 当前实现路线
 
