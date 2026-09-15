@@ -83,6 +83,7 @@ pub struct Business {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum CrawlerEvent {
+    Diagnostic { message: String },
     Status { message: String },
     Progress { discovered: u32, message: String },
     Business { data: BusinessInput },

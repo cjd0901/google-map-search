@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type {
   Business,
   EmailCsvResult,
@@ -16,6 +17,10 @@ function upsertById<T extends { id: string | number }>(items: T[], incoming: T):
   const index = items.findIndex((item) => item.id === incoming.id);
   if (index === -1) return [incoming, ...items];
   return items.map((item, itemIndex) => (itemIndex === index ? incoming : item));
+}
+
+function recordFrontendError(source: string, error: unknown) {
+  void searchService.writeDiagnosticLog(source, getErrorMessage(error)).catch(() => undefined);
 }
 
 export function useLeadCollection() {
@@ -55,6 +60,7 @@ export function useLeadCollection() {
         setSelectedJobId(initialJobId);
       })
       .catch((error) => {
+        recordFrontendError("frontend.snapshot", error);
         if (!disposed) setNotice(getErrorMessage(error));
       });
 
@@ -63,7 +69,7 @@ export function useLeadCollection() {
     }).then((unlisten) => {
       if (disposed) unlisten();
       else unlisteners.push(unlisten);
-    });
+    }).catch((error) => recordFrontendError("frontend.job_listener", error));
 
     void searchService.onBusinessUpsert((business) => {
       if (!disposed && business.jobId === selectedJobIdRef.current) {
@@ -72,7 +78,7 @@ export function useLeadCollection() {
     }).then((unlisten) => {
       if (disposed) unlisten();
       else unlisteners.push(unlisten);
-    });
+    }).catch((error) => recordFrontendError("frontend.business_listener", error));
 
     return () => {
       disposed = true;
@@ -89,6 +95,7 @@ export function useLeadCollection() {
         if (!disposed) setEntitlement(nextEntitlement);
       })
       .catch((error) => {
+        recordFrontendError("frontend.entitlement", error);
         if (!disposed) setNotice(getErrorMessage(error));
       })
       .finally(() => {
@@ -109,6 +116,7 @@ export function useLeadCollection() {
         setBusinesses(nextBusinesses);
       }
     } catch (error) {
+      recordFrontendError("frontend.select_job", error);
       if (selectionVersion === selectionVersionRef.current) {
         setNotice(getErrorMessage(error));
       }
@@ -120,6 +128,7 @@ export function useLeadCollection() {
       const business = await searchService.updateBusinessEmails(businessId, emails);
       setBusinesses((current) => upsertById(current, business));
     } catch (error) {
+      recordFrontendError("frontend.update_business_emails", error);
       const message = getErrorMessage(error);
       setNotice(message);
       throw new Error(message);
@@ -143,6 +152,7 @@ export function useLeadCollection() {
       setNotice(`已删除商家“${business.name || "未命名商家"}”。`);
       return true;
     } catch (error) {
+      recordFrontendError("frontend.delete_business", error);
       setNotice(getErrorMessage(error));
       return false;
     }
@@ -171,7 +181,8 @@ export function useLeadCollection() {
       try {
         await licenseService.commit(authorization.token);
         setEntitlement(await licenseService.getEntitlement());
-      } catch {
+      } catch (error) {
+        recordFrontendError("frontend.license_commit", error);
         setNotice("任务已创建，但授权状态同步稍有延迟，请稍后刷新。 ");
       }
 
@@ -183,10 +194,12 @@ export function useLeadCollection() {
         if (selectedJobIdRef.current === job.id) {
           setBusinesses(snapshot.businesses);
         }
-      } catch {
+      } catch (error) {
+        recordFrontendError("frontend.task_reconcile", error);
         // Live crawler events continue to update the interface.
       }
     } catch (error) {
+      recordFrontendError("frontend.create_job", error);
       if (authorization && !started) {
         await licenseService.release(authorization.token).catch(() => undefined);
       }
@@ -207,6 +220,7 @@ export function useLeadCollection() {
     try {
       await searchService.controlSearch(selectedJob.id, action);
     } catch (error) {
+      recordFrontendError("frontend.control_job", error);
       setNotice(getErrorMessage(error));
     }
   }
@@ -216,6 +230,7 @@ export function useLeadCollection() {
     try {
       await searchService.resumeSearch(selectedJob.id);
     } catch (error) {
+      recordFrontendError("frontend.resume_job", error);
       setNotice(getErrorMessage(error));
     }
   }
@@ -237,6 +252,7 @@ export function useLeadCollection() {
       setNotice(`已删除任务“${job.keyword} · ${job.location}”及其全部记录。`);
       return true;
     } catch (error) {
+      recordFrontendError("frontend.delete_job", error);
       setNotice(getErrorMessage(error));
       return false;
     }
@@ -260,6 +276,7 @@ export function useLeadCollection() {
       );
       return true;
     } catch (error) {
+      recordFrontendError("frontend.export", error);
       setNotice(getErrorMessage(error));
       return false;
     }
@@ -275,11 +292,23 @@ export function useLeadCollection() {
       );
       return result;
     } catch (error) {
+      recordFrontendError("frontend.scrape_emails_csv", error);
       const message = getErrorMessage(error);
       setNotice(message);
       throw new Error(message);
     } finally {
       setIsScrapingCsv(false);
+    }
+  }
+
+  async function openDiagnosticLog() {
+    try {
+      const path = await searchService.getDiagnosticLogPath();
+      await revealItemInDir(path);
+      setNotice(`诊断日志：${path}`);
+    } catch (error) {
+      recordFrontendError("frontend.open_diagnostic_log", error);
+      setNotice(`无法打开诊断日志：${getErrorMessage(error)}`);
     }
   }
 
@@ -303,5 +332,6 @@ export function useLeadCollection() {
     deleteJob,
     exportJobs,
     scrapeEmailsCsv,
+    openDiagnosticLog,
   };
 }

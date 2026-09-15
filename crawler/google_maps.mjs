@@ -187,6 +187,9 @@ async function extractBusiness(page, mapsUrl) {
 
 async function main() {
   const request = JSON.parse(process.argv[2] || "{}");
+  emit("diagnostic", {
+    message: `node=${process.version} platform=${process.platform} arch=${process.arch} script=${import.meta.url}`,
+  });
   const keyword = clean(request.keyword);
   const location = clean(request.location);
   const maxResults = Math.max(1, Math.min(Number(request.maxResults) || 20, 200));

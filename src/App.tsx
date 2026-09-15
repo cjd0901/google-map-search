@@ -83,6 +83,12 @@ function App() {
             </button>
             <button
               className="ghost-button"
+              onClick={() => void collection.openDiagnosticLog()}
+            >
+              诊断日志
+            </button>
+            <button
+              className="ghost-button"
               onClick={() => setIsExportOpen(true)}
               disabled={!exportableJobs.length}
             >

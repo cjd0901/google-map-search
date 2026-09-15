@@ -61,6 +61,17 @@ pub fn start_search(
     let request = validate_request(request)?;
     ensure_no_active_job(state.inner())?;
     let job_id = Uuid::new_v4().to_string();
+    state.diagnostics.write(
+        "task.create",
+        format!(
+            "job_id={job_id} keyword={:?} location={:?} max_results={} language={} headless={}",
+            request.keyword,
+            request.location,
+            request.max_results,
+            request.language,
+            request.headless
+        ),
+    );
     {
         let connection = state.db.lock().map_err(|_| "数据库已锁定".to_string())?;
         db::insert_job(&connection, &job_id, &request)?;
@@ -77,6 +88,9 @@ pub fn resume_search(
     job_id: String,
 ) -> Result<SearchJob, String> {
     ensure_no_active_job(state.inner())?;
+    state
+        .diagnostics
+        .write("task.resume", format!("job_id={job_id}"));
     let request = {
         let connection = state.db.lock().map_err(|_| "数据库已锁定".to_string())?;
         db::request_for_job(&connection, &job_id)?
@@ -94,6 +108,10 @@ pub fn control_search(
     action: String,
 ) -> Result<(), String> {
     let action = ControlAction::try_from(action.as_str())?;
+    state.diagnostics.write(
+        "task.control",
+        format!("job_id={job_id} action={}", action.as_str()),
+    );
     let sender = state
         .controls
         .lock()
@@ -149,6 +167,18 @@ pub async fn scrape_emails_csv(
     email_csv::scrape_csv(csv_content, state.website_semaphore.clone()).await
 }
 
+#[tauri::command]
+pub fn get_diagnostic_log_path(state: State<'_, AppState>) -> String {
+    state.diagnostics.path().to_string_lossy().into_owned()
+}
+
+#[tauri::command]
+pub fn write_diagnostic_log(state: State<'_, AppState>, source: String, message: String) {
+    let source = source.chars().take(80).collect::<String>();
+    let message = message.chars().take(20_000).collect::<String>();
+    state.diagnostics.write(&source, message);
+}
+
 fn ensure_no_active_job(state: &AppState) -> Result<(), String> {
     let controls = state
         .controls
@@ -178,6 +208,10 @@ fn launch_job(
         db::update_job_status(&connection, &job_id, "running", "正在准备采集器")?;
     }
     crawler::emit_job(&app, &state, &job_id);
+    state.diagnostics.write(
+        "command.launch_job",
+        format!("job_id={job_id} 后台任务已提交"),
+    );
     tauri::async_runtime::spawn(crawler::run_search(app, state, job_id, request, receiver));
     Ok(())
 }

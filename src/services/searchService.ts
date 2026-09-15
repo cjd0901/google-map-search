@@ -51,6 +51,14 @@ export const searchService = {
     return invoke("scrape_emails_csv", { csvContent });
   },
 
+  getDiagnosticLogPath(): Promise<string> {
+    return invoke("get_diagnostic_log_path");
+  },
+
+  writeDiagnosticLog(source: string, message: string): Promise<void> {
+    return invoke("write_diagnostic_log", { source, message });
+  },
+
   onJobProgress(listener: (job: SearchJob) => void): Promise<UnlistenFn> {
     return listen<SearchJob>("job-progress", ({ payload }) => listener(payload));
   },
