@@ -27,6 +27,16 @@ pnpm tauri dev
 
 正式安装包已内置 Node.js 运行时和 `playwright-core`，最终用户无需安装任何开发语言或数据库；电脑只需装有 Microsoft Edge 或 Google Chrome。
 
+## 自动打包
+
+GitHub Actions 支持手动运行，也会在推送 `v*` 版本标签时自动构建：
+
+- Windows x64：NSIS 安装程序和 MSI 安装包。
+- macOS Apple Silicon：ARM64 应用和 DMG。
+- macOS Intel：x64 应用和 DMG。
+
+构建完成后，可在对应 Actions 运行记录的 Artifacts 区域下载。macOS 构建默认使用临时签名；面向外部正式分发时，应配置 Apple Developer 签名证书并完成公证。
+
 ## 代码结构
 
 - `src/components`：无数据访问职责的界面组件。
