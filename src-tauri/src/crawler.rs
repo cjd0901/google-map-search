@@ -51,7 +51,7 @@ pub async fn run_search(
     }
 
     let script = match crawler_script_path(&app) {
-        Some(path) => path,
+        Some(path) => command_compatible_path(&path),
         None => {
             state.diagnostics.write(
                 "crawler.error",
@@ -85,7 +85,8 @@ pub async fn run_search(
         .parent()
         .and_then(|path| path.parent())
         .unwrap_or_else(|| script.parent().unwrap());
-    let node_runtime = node_runtime_path(&app);
+    let node_runtime = command_compatible_path(&node_runtime_path(&app));
+    let project_dir = command_compatible_path(project_dir);
     state.diagnostics.write(
         "crawler.runtime",
         format!(
@@ -100,7 +101,7 @@ pub async fn run_search(
     command
         .arg(&script)
         .arg(request_json)
-        .current_dir(project_dir)
+        .current_dir(&project_dir)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -408,6 +409,20 @@ fn node_runtime_path(app: &AppHandle) -> PathBuf {
     PathBuf::from("node")
 }
 
+fn command_compatible_path(path: &std::path::Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let value = path.to_string_lossy();
+        if let Some(value) = value.strip_prefix(r"\\?\UNC\") {
+            return PathBuf::from(format!(r"\\{value}"));
+        }
+        if let Some(value) = value.strip_prefix(r"\\?\") {
+            return PathBuf::from(value);
+        }
+    }
+    path.to_path_buf()
+}
+
 fn set_job_status(
     app: &AppHandle,
     state: &AppState,
@@ -431,5 +446,38 @@ pub fn emit_job(app: &AppHandle, state: &AppState, job_id: &str) {
         if let Ok(Some(job)) = db::get_job(&connection, job_id) {
             let _ = app.emit("job-progress", job);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::command_compatible_path;
+
+    #[test]
+    fn keeps_regular_paths_unchanged() {
+        let path = Path::new(r"E:\迎风数据\runtime\google_maps.mjs");
+        assert_eq!(command_compatible_path(path), path);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn removes_windows_verbatim_disk_prefix() {
+        let path = Path::new(r"\\?\E:\迎风数据\runtime\google_maps.mjs");
+        assert_eq!(
+            command_compatible_path(path),
+            Path::new(r"E:\迎风数据\runtime\google_maps.mjs")
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn converts_windows_verbatim_unc_prefix() {
+        let path = Path::new(r"\\?\UNC\server\share\google_maps.mjs");
+        assert_eq!(
+            command_compatible_path(path),
+            Path::new(r"\\server\share\google_maps.mjs")
+        );
     }
 }
