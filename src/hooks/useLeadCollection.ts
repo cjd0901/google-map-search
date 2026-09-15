@@ -157,16 +157,35 @@ export function useLeadCollection() {
       authorization = await licenseService.authorize(request.maxResults);
       const job = await searchService.startSearch(request);
       started = true;
+
+      // The crawler starts in the backend before startSearch resolves. Keep any
+      // newer progress event that may already have arrived instead of replacing
+      // it with the initial "queued" job returned by the command.
+      selectionVersionRef.current += 1;
+      selectJobLocally(job.id);
+      setJobs((current) =>
+        current.some((item) => item.id === job.id) ? current : [job, ...current],
+      );
+      setBusinesses([]);
+
       try {
         await licenseService.commit(authorization.token);
         setEntitlement(await licenseService.getEntitlement());
       } catch {
         setNotice("任务已创建，但授权状态同步稍有延迟，请稍后刷新。 ");
       }
-      selectionVersionRef.current += 1;
-      selectJobLocally(job.id);
-      setJobs((current) => upsertById(current, job));
-      setBusinesses([]);
+
+      // Reconcile events that may have completed while the authorization
+      // service request was in flight (especially very small search jobs).
+      try {
+        const snapshot = await searchService.getSnapshot(job.id);
+        setJobs(snapshot.jobs);
+        if (selectedJobIdRef.current === job.id) {
+          setBusinesses(snapshot.businesses);
+        }
+      } catch {
+        // Live crawler events continue to update the interface.
+      }
     } catch (error) {
       if (authorization && !started) {
         await licenseService.release(authorization.token).catch(() => undefined);

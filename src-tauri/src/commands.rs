@@ -61,12 +61,13 @@ pub fn start_search(
     let request = validate_request(request)?;
     ensure_no_active_job(state.inner())?;
     let job_id = Uuid::new_v4().to_string();
-    let job = {
+    {
         let connection = state.db.lock().map_err(|_| "数据库已锁定".to_string())?;
-        db::insert_job(&connection, &job_id, &request)?
-    };
-    launch_job(app, state.inner().clone(), job_id, request)?;
-    Ok(job)
+        db::insert_job(&connection, &job_id, &request)?;
+    }
+    launch_job(app, state.inner().clone(), job_id.clone(), request)?;
+    let connection = state.db.lock().map_err(|_| "数据库已锁定".to_string())?;
+    db::get_job(&connection, &job_id)?.ok_or_else(|| "任务不存在".to_string())
 }
 
 #[tauri::command]
@@ -172,6 +173,11 @@ fn launch_job(
         .lock()
         .map_err(|_| "任务状态已锁定".to_string())?
         .insert(job_id.clone(), sender);
+    {
+        let connection = state.db.lock().map_err(|_| "数据库已锁定".to_string())?;
+        db::update_job_status(&connection, &job_id, "running", "正在准备采集器")?;
+    }
+    crawler::emit_job(&app, &state, &job_id);
     tauri::async_runtime::spawn(crawler::run_search(app, state, job_id, request, receiver));
     Ok(())
 }
