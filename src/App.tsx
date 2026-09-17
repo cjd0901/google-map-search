@@ -64,8 +64,7 @@ function App() {
       <main className="workspace">
         <header className="topbar">
           <div>
-            <h1>商家信息采集</h1>
-            <p>从地图结果发现商家，再从官网寻找公开联系邮箱</p>
+            <h1>任务详情</h1>
           </div>
           <div className="topbar-actions">
             <button

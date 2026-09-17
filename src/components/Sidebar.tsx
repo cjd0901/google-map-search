@@ -28,7 +28,7 @@ export function Sidebar({
         className="new-task"
         onClick={() => document.getElementById("keyword")?.focus()}
       >
-        <span>＋</span> 新建采集任务
+        <span>＋</span> 新建任务
       </button>
 
       <div className="sidebar-heading">任务记录</div>
