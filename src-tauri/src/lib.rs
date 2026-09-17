@@ -44,6 +44,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::get_or_create_device_id,
             commands::get_snapshot,
             commands::list_businesses,
             commands::update_business_emails,

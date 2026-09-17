@@ -21,11 +21,13 @@ pnpm install
 pnpm tauri dev
 ```
 
-开发环境需要安装 Node.js，以及 Microsoft Edge 或 Google Chrome。采集任务固定使用简体中文并默认在后台运行。
+开发环境需要安装 Node.js。macOS 首次构建时会下载并内置专用的无头浏览器，使后台采集不在程序坞显示 Chrome 图标；若该浏览器不可用，仍会回退到本机的 Microsoft Edge 或 Google Chrome。
 
 授权服务地址默认是 `https://wa.sililand.com:39128/gs`，实际请求会访问 `https://wa.sililand.com:39128/gs/api/v1/...`。如需连接其他服务地址，可在构建前设置 `VITE_SERVER_URL`。
 
-正式安装包已内置 Node.js 运行时和 `playwright-core`，最终用户无需安装任何开发语言或数据库；电脑只需装有 Microsoft Edge 或 Google Chrome。
+应用不会明文保存激活卡密，而是将服务端授权所绑定的设备标识持久化到应用数据数据库。覆盖安装应用会保留授权；手动删除应用数据目录会同时清除任务数据和设备标识。
+
+正式安装包已内置 Node.js 运行时和 `playwright-core`。macOS 安装包还内置专用的无头浏览器，最终用户无需安装任何开发语言、数据库或额外浏览器；其他平台需要 Microsoft Edge 或 Google Chrome。
 
 ## 自动打包
 

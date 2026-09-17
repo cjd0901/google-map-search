@@ -5,8 +5,9 @@
   "packageManager": "pnpm@11.19.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/prepare-runtime.mjs && vite",
     "build": "node scripts/prepare-runtime.mjs && tsc && vite build",
+    "test:crawler": "node --test crawler/*.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

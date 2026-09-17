@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import type { LicenseEntitlement, UsageAuthorization } from "../domain/models";
 
 const API_BASE_URL = (import.meta.env.VITE_SERVER_URL || "https://wa.sililand.com:39128/gs").replace(
@@ -24,7 +25,7 @@ function createDeviceId(): string {
   return `device-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function getDeviceId(): string {
+function getLegacyDeviceId(): string | null {
   try {
     const stored = window.localStorage.getItem(DEVICE_ID_KEY)?.trim();
     if (stored) return stored;
@@ -33,12 +34,37 @@ function getDeviceId(): string {
       window.localStorage.setItem(DEVICE_ID_KEY, legacyStored);
       return legacyStored;
     }
-    const deviceId = createDeviceId();
-    window.localStorage.setItem(DEVICE_ID_KEY, deviceId);
-    return deviceId;
   } catch {
-    return createDeviceId();
+    // Native persistence below remains available when WebView storage is not.
   }
+  return null;
+}
+
+function saveLegacyDeviceId(deviceId: string) {
+  try {
+    window.localStorage.setItem(DEVICE_ID_KEY, deviceId);
+  } catch {
+    // The native database is the source of truth.
+  }
+}
+
+let deviceIdPromise: Promise<string> | null = null;
+
+function getDeviceId(): Promise<string> {
+  if (deviceIdPromise) return deviceIdPromise;
+
+  const legacyDeviceId = getLegacyDeviceId();
+  deviceIdPromise = invoke<string>("get_or_create_device_id", { legacyDeviceId })
+    .then((deviceId) => {
+      saveLegacyDeviceId(deviceId);
+      return deviceId;
+    })
+    .catch(() => {
+      const fallback = legacyDeviceId || createDeviceId();
+      saveLegacyDeviceId(fallback);
+      return fallback;
+    });
+  return deviceIdPromise;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -71,36 +97,36 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const licenseService = {
   getDeviceId,
 
-  getEntitlement(): Promise<LicenseEntitlement> {
-    const deviceId = encodeURIComponent(getDeviceId());
+  async getEntitlement(): Promise<LicenseEntitlement> {
+    const deviceId = encodeURIComponent(await getDeviceId());
     return request(`/api/v1/entitlement?deviceId=${deviceId}`);
   },
 
-  authorize(requestedCount: number): Promise<UsageAuthorization> {
+  async authorize(requestedCount: number): Promise<UsageAuthorization> {
     return request("/api/v1/usage/authorize", {
       method: "POST",
-      body: JSON.stringify({ deviceId: getDeviceId(), requestedCount }),
+      body: JSON.stringify({ deviceId: await getDeviceId(), requestedCount }),
     });
   },
 
-  commit(token: string): Promise<{ ok: boolean }> {
+  async commit(token: string): Promise<{ ok: boolean }> {
     return request("/api/v1/usage/commit", {
       method: "POST",
-      body: JSON.stringify({ deviceId: getDeviceId(), token }),
+      body: JSON.stringify({ deviceId: await getDeviceId(), token }),
     });
   },
 
-  release(token: string): Promise<{ ok: boolean }> {
+  async release(token: string): Promise<{ ok: boolean }> {
     return request("/api/v1/usage/release", {
       method: "POST",
-      body: JSON.stringify({ deviceId: getDeviceId(), token }),
+      body: JSON.stringify({ deviceId: await getDeviceId(), token }),
     });
   },
 
-  redeem(code: string): Promise<LicenseEntitlement> {
+  async redeem(code: string): Promise<LicenseEntitlement> {
     return request("/api/v1/activation/redeem", {
       method: "POST",
-      body: JSON.stringify({ deviceId: getDeviceId(), code }),
+      body: JSON.stringify({ deviceId: await getDeviceId(), code }),
     });
   },
 };

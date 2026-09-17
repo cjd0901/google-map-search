@@ -56,6 +56,10 @@ pub fn open(path: &Path) -> Result<Connection, String> {
                 FOREIGN KEY(job_id) REFERENCES search_jobs(id) ON DELETE CASCADE,
                UNIQUE(job_id, maps_url)
              );
+             CREATE TABLE IF NOT EXISTS app_settings (
+               key TEXT PRIMARY KEY,
+               value TEXT NOT NULL
+             );
              CREATE INDEX IF NOT EXISTS idx_businesses_job ON businesses(job_id);
              CREATE INDEX IF NOT EXISTS idx_businesses_website ON businesses(website);",
         )
@@ -63,6 +67,28 @@ pub fn open(path: &Path) -> Result<Connection, String> {
     ensure_facebook_urls_column(&connection)?;
     ensure_exported_at_column(&connection)?;
     Ok(connection)
+}
+
+pub fn get_setting(connection: &Connection, key: &str) -> Result<Option<String>, String> {
+    connection
+        .query_row(
+            "SELECT value FROM app_settings WHERE key = ?1",
+            [key],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())
+}
+
+pub fn set_setting(connection: &Connection, key: &str, value: &str) -> Result<(), String> {
+    connection
+        .execute(
+            "INSERT INTO app_settings (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![key, value],
+        )
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 fn ensure_facebook_urls_column(connection: &Connection) -> Result<(), String> {
@@ -462,5 +488,27 @@ mod tests {
 
         assert!(exported.is_some());
         assert!(untouched.is_none());
+    }
+
+    #[test]
+    fn stores_and_updates_app_settings() {
+        let connection = Connection::open_in_memory().expect("open database");
+        connection
+            .execute_batch(
+                "CREATE TABLE app_settings (
+                   key TEXT PRIMARY KEY,
+                   value TEXT NOT NULL
+                 );",
+            )
+            .expect("create settings table");
+
+        assert_eq!(get_setting(&connection, "license.device_id").unwrap(), None);
+        set_setting(&connection, "license.device_id", "device-old").unwrap();
+        set_setting(&connection, "license.device_id", "device-new").unwrap();
+
+        assert_eq!(
+            get_setting(&connection, "license.device_id").unwrap(),
+            Some("device-new".to_string())
+        );
     }
 }

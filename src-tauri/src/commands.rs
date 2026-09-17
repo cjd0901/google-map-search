@@ -8,6 +8,43 @@ use crate::{
     state::AppState,
 };
 
+const LICENSE_DEVICE_ID_SETTING: &str = "license.device_id";
+
+#[tauri::command]
+pub fn get_or_create_device_id(
+    state: State<'_, AppState>,
+    legacy_device_id: Option<String>,
+) -> Result<String, String> {
+    let connection = state.db.lock().map_err(|_| "数据库已锁定".to_string())?;
+    if let Some(stored) = db::get_setting(&connection, LICENSE_DEVICE_ID_SETTING)? {
+        if let Some(device_id) = normalize_device_id(&stored) {
+            return Ok(device_id);
+        }
+    }
+
+    let device_id = legacy_device_id
+        .as_deref()
+        .and_then(normalize_device_id)
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    db::set_setting(&connection, LICENSE_DEVICE_ID_SETTING, &device_id)?;
+    state
+        .diagnostics
+        .write("license.device_id", "设备授权标识已保存到本地数据库");
+    Ok(device_id)
+}
+
+fn normalize_device_id(value: &str) -> Option<String> {
+    let value = value.trim();
+    if !(8..=128).contains(&value.len())
+        || !value
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || "-_.:".contains(character))
+    {
+        return None;
+    }
+    Some(value.to_string())
+}
+
 #[tauri::command]
 pub fn get_snapshot(
     state: State<'_, AppState>,
@@ -257,6 +294,30 @@ impl ControlAction {
             Self::Pause => "任务已暂停，可从现有结果继续",
             Self::Cancel => "任务已取消",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_device_id;
+
+    #[test]
+    fn accepts_existing_device_ids() {
+        assert_eq!(
+            normalize_device_id(" 6a8bc927-0872-4a5b-8ca4-9e226e41d53b "),
+            Some("6a8bc927-0872-4a5b-8ca4-9e226e41d53b".to_string())
+        );
+        assert_eq!(
+            normalize_device_id("device-12345678"),
+            Some("device-12345678".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_unsafe_device_ids() {
+        assert_eq!(normalize_device_id("short"), None);
+        assert_eq!(normalize_device_id("device id with spaces"), None);
+        assert_eq!(normalize_device_id("设备-12345678"), None);
     }
 }
 
